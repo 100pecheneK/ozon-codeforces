@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"container/list"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Cell struct {
@@ -28,38 +30,39 @@ func (r *Region) add(cell *Cell) {
 	r.cells = append(r.cells, cell)
 }
 
-// New is a new instance of a Queue
 func NewQueue() *list.List {
 	return list.New()
 }
 
 func main() {
-	data_count := 1
-	len_x := 3
+	var data_count int
+	var len_x, columns_count int
 	var queue *list.List
 	var region *Region
+	var cell_map [][]string
+	stdin := bufio.NewReader(os.Stdin)
+	fmt.Fscanln(stdin, &data_count)
 
+NO:
 	for data_index := 0; data_index < data_count; data_index++ {
-		cell_map := [][]string{{"R", "R", "R", "G"}, {"Y", "G", "G"}, {"B", "Y", "V", "V"}}
-		regions := make(map[string]*Region)
-		fmt.Printf("\nMap:\n")
-		for i, r := range cell_map {
-			fmt.Printf("%d: %v %d\n", i, r, len(r))
+		fmt.Fscanln(stdin, &len_x, &columns_count)
+		cell_map = make([][]string, len_x)
+		for row := 0; row < len_x; row++ {
+			r, _ := stdin.ReadString('\n')
+			cells := strings.Split(strings.ReplaceAll(strings.TrimSpace(r), ".", ""), "")
+			cell_map[row] = append(cell_map[row], cells...)
 		}
-		fmt.Println()
-		// traverse map
+		regions := make(map[string]*Region)
 		for x, row := range cell_map {
 			queue = NewQueue()
 			for y, cell := range row {
-				fmt.Println(cell)
 				if r, exist := regions[cell]; exist {
-					if exst := region.isCellExist(x, y); exst {
+					if exst := r.isCellExist(x, y); exst {
 						continue
 					}
 					if r.closed {
-						// WORK IS DONE :)
-						fmt.Println("REGION CLOSED:", r.color)
-						os.Exit(1)
+						fmt.Println("NO")
+						continue NO
 					}
 
 				} else {
@@ -73,17 +76,13 @@ func main() {
 
 				for queue.Len() > 0 {
 					e := queue.Front()
-
 					logic(region, e.Value.(*Cell).x, e.Value.(*Cell).y, len_x, &cell_map, cell, queue)
-					// здзесь нода неверно удаляется
-
 					queue.Remove(e)
-					// queue.node = queue.node.Next
 				}
 				region.closed = true
 			}
-			fmt.Println()
 		}
+		fmt.Println("YES")
 	}
 }
 
@@ -110,31 +109,24 @@ func logic(region *Region, x, y, len_x int, cell_map *[][]string, cell string, q
 	if exst := checkIfRowExist(x+1, len_x); exst {
 		len_y_bot = len((*cell_map)[x+1])
 	}
-	// add current cell if not exist
 	if !region.isCellExist(x, y) {
-		fmt.Println("REGION-ADD:", x, y)
 		c := &Cell{x, y}
 		region.add(c)
 	}
 
-	// left exist
 	exist := checkIfCordExistInMatrix(x, y-1, len_x, len_y)
 	if exist {
 		if (*cell_map)[x][y-1] == cell {
-			// not in region
 			if !region.isCellExist(x, y-1) {
 				c := &Cell{x: x, y: y - 1}
-				fmt.Println("REGION-ADD:", x, y-1)
 				region.add(c)
 				queue.PushBack(c)
 			}
 		}
 	}
-	// right exist
 	exist = checkIfCordExistInMatrix(x, y+1, len_x, len_y)
 	if exist {
 		if (*cell_map)[x][y+1] == cell {
-			// not in region
 			if !region.isCellExist(x, y+1) {
 				c := &Cell{x: x, y: y + 1}
 				region.add(c)
@@ -142,53 +134,58 @@ func logic(region *Region, x, y, len_x int, cell_map *[][]string, cell string, q
 			}
 		}
 	}
-	// top left exist
-	exist = checkIfCordExistInMatrix(x-1, y-1, len_x, len_y_top)
+
+	top_left_x, top_left_y := getCordByX(x, x-1, y-1, x-1, y)
+	exist = checkIfCordExistInMatrix(top_left_x, top_left_y, len_x, len_y_top)
 	if exist {
-		if (*cell_map)[x-1][y-1] == cell {
-			// not in region
+		if (*cell_map)[top_left_x][top_left_y] == cell {
 			if !region.isCellExist(x-1, y-1) {
-				c := &Cell{x: x - 1, y: y - 1}
+				c := &Cell{x: top_left_x, y: top_left_y}
 				region.add(c)
 				queue.PushBack(c)
 			}
 		}
 	}
-	// top right exist
-	exist = checkIfCordExistInMatrix(x-1, y, len_x, len_y_top)
+	top_left_x, top_left_y = getCordByX(x, x-1, y, x-1, y+1)
+	exist = checkIfCordExistInMatrix(top_left_x, top_left_y, len_x, len_y_top)
 	if exist {
-		if (*cell_map)[x-1][y] == cell {
-			// not in region
+		if (*cell_map)[top_left_x][top_left_y] == cell {
 			if !region.isCellExist(x-1, y) {
-				c := &Cell{x: x - 1, y: y}
+				c := &Cell{x: top_left_x, y: top_left_y}
 				region.add(c)
 				queue.PushBack(c)
 			}
 		}
 	}
-	// bot left exist
-	exist = checkIfCordExistInMatrix(x+1, y-1, len_x, len_y_bot)
+	top_left_x, top_left_y = getCordByX(x, x+1, y-1, x+1, y)
+	exist = checkIfCordExistInMatrix(top_left_x, top_left_y, len_x, len_y_bot)
 	if exist {
-		if (*cell_map)[x+1][y-1] == cell {
-			// not in region
+		if (*cell_map)[top_left_x][top_left_y] == cell {
 			if !region.isCellExist(x+1, y-1) {
-				c := &Cell{x: x + 1, y: y - 1}
+				c := &Cell{x: top_left_x, y: top_left_y}
 				region.add(c)
 				queue.PushBack(c)
 			}
 		}
 	}
-	// bot right exist
-	exist = checkIfCordExistInMatrix(x+1, y, len_x, len_y_bot)
+	top_left_x, top_left_y = getCordByX(x, x+1, y, x+1, y+1)
+	exist = checkIfCordExistInMatrix(top_left_x, top_left_y, len_x, len_y_bot)
 	if exist {
-		if (*cell_map)[x+1][y] == cell {
-			// not in region
+		if (*cell_map)[top_left_x][top_left_y] == cell {
 			if !region.isCellExist(x+1, y) {
-				c := &Cell{x: x + 1, y: y}
+				c := &Cell{x: top_left_x, y: top_left_y}
 				region.add(c)
 				queue.PushBack(c)
 			}
 		}
 	}
 
+}
+
+func getCordByX(x, x_0, y_0, x_1, y_1 int) (int, int) {
+	if x%2 == 0 {
+		return x_0, y_0
+	} else {
+		return x_1, y_1
+	}
 }
